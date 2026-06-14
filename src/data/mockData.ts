@@ -176,6 +176,10 @@ export const defaultRecords: ChatRecord[] = [
     title: '雨天的咖啡馆',
     summary: '林小雨和陈默在咖啡馆偶遇，展开了一段有趣的对话。',
     actorIds: [defaultActors[0].id, defaultActors[1].id],
+    actorsSnapshot: [
+      { id: defaultActors[0].id, name: defaultActors[0].name, avatar: defaultActors[0].avatar, tone: defaultActors[0].tone, color: defaultActors[0].color },
+      { id: defaultActors[1].id, name: defaultActors[1].name, avatar: defaultActors[1].avatar, tone: defaultActors[1].tone, color: defaultActors[1].color },
+    ],
     messages: [],
     isFavorite: true,
     createdAt: now - 86400000 * 2,
@@ -183,12 +187,19 @@ export const defaultRecords: ChatRecord[] = [
     mode: 'one-on-one',
     savedAt: now - 86400000 * 2,
     pinnedMemories: [],
+    reviewNotes: { conflict: '', characterStates: '', nextSteps: '' },
+    reviewSummary: '',
   },
   {
     id: generateId(),
     title: '周末聚会',
     summary: '一群好朋友的周末闲聊时光。',
     actorIds: [defaultActors[0].id, defaultActors[2].id, defaultActors[4].id],
+    actorsSnapshot: [
+      { id: defaultActors[0].id, name: defaultActors[0].name, avatar: defaultActors[0].avatar, tone: defaultActors[0].tone, color: defaultActors[0].color },
+      { id: defaultActors[2].id, name: defaultActors[2].name, avatar: defaultActors[2].avatar, tone: defaultActors[2].tone, color: defaultActors[2].color },
+      { id: defaultActors[4].id, name: defaultActors[4].name, avatar: defaultActors[4].avatar, tone: defaultActors[4].tone, color: defaultActors[4].color },
+    ],
     messages: [],
     isFavorite: false,
     createdAt: now - 86400000,
@@ -196,6 +207,8 @@ export const defaultRecords: ChatRecord[] = [
     mode: 'group',
     savedAt: now - 86400000,
     pinnedMemories: [],
+    reviewNotes: { conflict: '', characterStates: '', nextSteps: '' },
+    reviewSummary: '',
   },
 ];
 

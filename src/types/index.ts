@@ -11,6 +11,30 @@ export interface AIActor {
   updatedAt: number;
 }
 
+export interface ActorSnapshot {
+  id: string;
+  name: string;
+  avatar: string;
+  tone: string;
+  color: string;
+}
+
+export type PinnedMemorySource = 'manual' | 'message';
+
+export interface PinnedMemory {
+  id: string;
+  text: string;
+  source: PinnedMemorySource;
+  sourceMessageId?: string;
+  createdAt: number;
+}
+
+export interface ReviewNotes {
+  conflict: string;
+  characterStates: string;
+  nextSteps: string;
+}
+
 export type StanceType = 'friendly' | 'neutral' | 'hostile' | 'complex';
 
 export interface Relation {
@@ -48,7 +72,9 @@ export interface ChatRoom {
   updatedAt: number;
   currentSpeakerIndex: number;
   isPlaying: boolean;
-  pinnedMemories: string[];
+  pinnedMemories: PinnedMemory[];
+  parentRecordId?: string;
+  parentRecordTitle?: string;
 }
 
 export interface Script {
@@ -66,13 +92,18 @@ export interface ChatRecord {
   title: string;
   summary: string;
   actorIds: string[];
+  actorsSnapshot: ActorSnapshot[];
   messages: ChatMessage[];
   isFavorite: boolean;
   createdAt: number;
   duration: number;
   mode: ChatMode;
   savedAt: number;
-  pinnedMemories: string[];
+  pinnedMemories: PinnedMemory[];
+  parentId?: string;
+  branchName?: string;
+  reviewNotes: ReviewNotes;
+  reviewSummary?: string;
 }
 
 export interface Template {

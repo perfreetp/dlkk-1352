@@ -17,13 +17,28 @@ import {
   Save,
   X,
   Pin,
+  RotateCcw,
+  MessageSquareQuote,
 } from 'lucide-react';
 import { useChatStore } from '@/store/useChatStore';
 import { useActorStore } from '@/store/useActorStore';
 import { useSettingStore } from '@/store/useSettingStore';
 import { formatTime, generateId } from '@/utils/storage';
 import { exportChatAsText, exportChatAsMarkdown } from '@/utils/aiEngine';
-import type { ChatMessage } from '@/types';
+import type { ChatMessage, AIActor, PinnedMemory } from '@/types';
+
+const UNKNOWN_ACTOR: AIActor = {
+  id: 'unknown',
+  name: '未知角色',
+  avatar: '❓',
+  tone: 'neutral',
+  memory: '',
+  taboo: '',
+  tags: [],
+  color: '#64748b',
+  createdAt: 0,
+  updatedAt: 0,
+};
 
 export default function Chat() {
   const {
@@ -194,7 +209,17 @@ export default function Chat() {
     URL.revokeObjectURL(url);
   };
 
-  const getActorById = (id: string | undefined) => id ? actors.find(a => a.id === id) : undefined;
+  const getActorById = (id?: string): AIActor => {
+    if (!id) return UNKNOWN_ACTOR;
+    return actors.find(a => a.id === id) || UNKNOWN_ACTOR;
+  };
+
+  const isActorDeleted = (id: string) => !actors.some(a => a.id === id);
+
+  const memorySourceLabel = (mem: PinnedMemory) => 
+    mem.source === 'message' 
+      ? { text: '来自消息', icon: <MessageSquareQuote className="w-3 h-3" />, className: 'bg-rose-500/20 text-rose-200 border-rose-500/30' }
+      : { text: '手动设定', icon: <Pin className="w-3 h-3" />, className: 'bg-amber-500/20 text-amber-200 border-amber-500/30' };
 
   return (
     <div className="animate-fade-in h-[calc(100vh-4rem)] -m-8 relative">
@@ -248,6 +273,12 @@ export default function Chat() {
                   <p className="text-xs text-violet-300/50 mt-1">
                     {room.mode === 'group' ? '群聊' : '一对一'} · {room.actorIds.length} 角色 · {room.messages.length} 条
                   </p>
+                  {room.parentRecordTitle && (
+                    <p className="text-[10px] text-emerald-400/80 mt-1 truncate flex items-center gap-1">
+                      <RotateCcw className="w-3 h-3" />
+                      续写自：{room.parentRecordTitle}
+                    </p>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -283,6 +314,12 @@ export default function Chat() {
                     {currentRoom.mode === 'group' ? '群聊模式' : `一对一模式 · ${currentRoom.actorIds.length === 2 ? '双方就绪' : '角色不足'}`}
                     {(currentRoom.pinnedMemories?.length || 0) > 0 && ` · 📌 ${currentRoom.pinnedMemories.length}条关键记忆`}
                   </p>
+                  {currentRoom.parentRecordTitle && (
+                    <p className="text-[11px] text-emerald-400/90 mt-1 flex items-center gap-1">
+                      <RotateCcw className="w-3 h-3" />
+                      续写自「{currentRoom.parentRecordTitle}」
+                    </p>
+                  )}
                 </div>
               ) : (
                 <p className="text-violet-300/50">选择左侧聊天室或创建新的对话</p>
@@ -355,21 +392,28 @@ export default function Chat() {
                   )}
 
                   <div className="flex flex-wrap gap-2">
-                    {currentRoom.pinnedMemories?.map((mem, idx) => (
-                      <div
-                        key={idx}
-                        className="group relative px-3 py-1.5 bg-amber-500/15 rounded-lg text-xs text-amber-200/90 border border-amber-500/20 flex items-center gap-2"
-                      >
-                        <span className="truncate max-w-sm">{mem}</span>
-                        <button
-                          onClick={() => unpinMemory(currentRoom.id, idx)}
-                          className="opacity-0 group-hover:opacity-100 text-amber-400/60 hover:text-amber-400 transition-opacity"
-                          title="取消钉住"
+                    {currentRoom.pinnedMemories?.map((mem) => {
+                      const src = memorySourceLabel(mem);
+                      return (
+                        <div
+                          key={mem.id}
+                          className="group relative px-3 py-1.5 bg-amber-500/15 rounded-lg text-xs text-amber-200/90 border border-amber-500/20 flex items-center gap-2"
                         >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${src.className} flex items-center gap-1 flex-shrink-0`}>
+                            {src.icon}
+                            {src.text}
+                          </span>
+                          <span className="truncate max-w-sm">{mem.text}</span>
+                          <button
+                            onClick={() => unpinMemory(currentRoom.id, mem.id)}
+                            className="opacity-0 group-hover:opacity-100 text-amber-400/60 hover:text-amber-400 transition-opacity flex-shrink-0"
+                            title="取消钉住"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -466,7 +510,7 @@ export default function Chat() {
 
                         // 判断是否靠右（第一个角色靠左，其他靠右）
                         const isLeft = msg.actorId === currentRoom.actorIds[0];
-                        const hasValidActor = !!actor;
+                        const isDeleted = isActorDeleted(msg.actorId);
 
                         return (
                           <div
@@ -476,14 +520,19 @@ export default function Chat() {
                             }`}
                           >
                             <div
-                              className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0"
+                              className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 relative"
                               style={{ 
-                                background: hasValidActor ? `${actor?.color}30` : '#ffffff10',
-                                border: `1px solid ${hasValidActor ? `${actor?.color}50` : '#ffffff20'}`,
+                                background: `${actor.color}30`,
+                                border: `1px solid ${actor.color}50`,
                               }}
-                              title={actor?.name || '未知角色'}
+                              title={actor.name}
                             >
-                              {actor?.avatar || '❓'}
+                              {actor.avatar}
+                              {isDeleted && (
+                                <span className="absolute -bottom-1 -right-1 text-[10px] bg-slate-700 text-slate-300 rounded px-1 border border-slate-500/50">
+                                  已删
+                                </span>
+                              )}
                             </div>
 
                             <div className={`max-w-[70%] ${
@@ -492,7 +541,9 @@ export default function Chat() {
                               <p className={`text-xs text-violet-300/60 mb-1 ${
                                 isLeft ? 'text-left' : 'text-right'
                               }`}>
-                                {actor?.name || '未知角色'} · {formatTime(msg.timestamp)}
+                                {actor.name}
+                                {isDeleted && <span className="ml-1 text-slate-400">(已删除)</span>}
+                                 · {formatTime(msg.timestamp)}
                                 {msg.isEdited && <span className="ml-1 text-violet-400/50">(已编辑)</span>}
                               </p>
                               
@@ -524,10 +575,10 @@ export default function Chat() {
                                 <div
                                   className={`chat-bubble-left relative ${
                                     !isLeft ? 'chat-bubble-right ml-auto' : ''
-                                  } ${!hasValidActor ? 'opacity-50' : ''}`}
+                                  } ${isDeleted ? 'opacity-60' : ''}`}
                                   style={{
-                                    background: !isLeft && hasValidActor
-                                      ? `linear-gradient(135deg, ${actor?.color}90 0%, ${actor?.color}60 100%)`
+                                    background: !isLeft
+                                      ? `linear-gradient(135deg, ${actor.color}90 0%, ${actor.color}60 100%)`
                                       : undefined
                                   }}
                                 >
@@ -586,13 +637,15 @@ export default function Chat() {
                   )}
                   {speechStats.map((stat) => {
                     const actor = getActorById(stat.actorId);
+                    const del = isActorDeleted(stat.actorId);
                     return (
                       <div key={stat.actorId}>
                         <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm">{actor?.avatar || '❓'}</span>
+                            <span className="text-sm">{actor.avatar}</span>
                             <span className="text-xs text-violet-200/80 truncate max-w-[100px]">
-                              {actor?.name || '未知'}
+                              {actor.name}
+                              {del && <span className="text-slate-400"> (已删)</span>}
                             </span>
                           </div>
                           <span className="text-xs text-violet-300/60">{stat.percentage}%</span>
@@ -602,7 +655,7 @@ export default function Chat() {
                             className="progress-fill"
                             style={{
                               width: `${stat.percentage}%`,
-                              backgroundColor: actor?.color || '#8b5cf6',
+                              backgroundColor: actor.color,
                             }}
                           />
                         </div>
@@ -616,10 +669,14 @@ export default function Chat() {
                 <div className="space-y-2">
                   {currentRoom.actorIds.map(id => {
                     const a = getActorById(id);
+                    const del = isActorDeleted(id);
                     return (
-                      <div key={id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-white/5">
-                        <span>{a?.avatar || '❓'}</span>
-                        <span className="text-xs text-violet-200/80 truncate">{a?.name || '未知角色'}</span>
+                      <div key={id} className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${del ? 'bg-slate-500/10 opacity-70' : 'bg-white/5'}`}>
+                        <span>{a.avatar}</span>
+                        <span className="text-xs text-violet-200/80 truncate flex-1">
+                          {a.name}
+                          {del && <span className="text-slate-400"> (已删)</span>}
+                        </span>
                       </div>
                     );
                   })}
