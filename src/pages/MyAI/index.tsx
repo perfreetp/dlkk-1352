@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Layers, Plus, Download, Trash2, Users, Sparkles } from 'lucide-react';
+import { Layers, Plus, Download, Trash2, Users, Sparkles, Network } from 'lucide-react';
 import { useTemplateStore } from '@/store/useTemplateStore';
 import { useActorStore } from '@/store/useActorStore';
 import { useRelationStore } from '@/store/useRelationStore';
-import type { Template } from '@/types';
+import { generateId } from '@/utils/storage';
+import type { Template, AIActor, Relation } from '@/types';
 
 export default function MyAI() {
   const { templates, init: initTemplates, addTemplate, deleteTemplate } = useTemplateStore();
@@ -43,9 +44,54 @@ export default function MyAI() {
   };
 
   const applyTemplate = (template: Template) => {
-    if (confirm(`确定要应用模板「${template.name}」吗？这将添加 ${template.actors.length} 个角色。`)) {
-      template.actors.forEach(actor => addActorFromTemplate(actor));
-      alert('模板应用成功！');
+    const actorCount = template.actors.length;
+    const relCount = template.relations.length;
+    let msg = `确定要应用模板「${template.name}」吗？\n将添加 ${actorCount} 个角色`;
+    if (relCount > 0) {
+      msg += ` 和 ${relCount} 条角色关系`;
+    }
+    msg += '。\n（已存在的同名角色会被自动复用）';
+    if (confirm(msg)) {
+      const idMap = new Map<string, string>();
+      
+      template.actors.forEach(actor => {
+        const newActor = addActorFromTemplate(actor);
+        if (newActor) {
+          idMap.set(actor.id, newActor.id);
+        }
+      });
+      
+      // 应用关系
+      let relApplied = 0;
+      template.relations.forEach(rel => {
+        const newId1 = idMap.get(rel.actorId1);
+        const newId2 = idMap.get(rel.actorId2);
+        if (newId1 && newId2) {
+          const newRel: Relation = {
+            id: generateId(),
+            actorId1: newId1,
+            actorId2: newId2,
+            intimacy: rel.intimacy,
+            stance: rel.stance,
+            description: rel.description,
+          };
+          // 调用 addRelationDirect 避免重复检查
+          const relStore = useRelationStore.getState();
+          const existing = relStore.getRelation(newId1, newId2);
+          if (!existing) {
+            // @ts-ignore
+            if (relStore.addRelationDirect) {
+              // @ts-ignore
+              relStore.addRelationDirect(newRel);
+            } else {
+              relStore.addRelation(newId1, newId2, rel.intimacy, rel.stance, rel.description);
+            }
+            relApplied++;
+          }
+        }
+      });
+      
+      alert(`✅ 模板应用成功！\n角色：${actorCount} 个\n关系：${relApplied} 条已恢复\n\n现在可以去关系网页面查看亲密度和立场了。`);
     }
   };
 

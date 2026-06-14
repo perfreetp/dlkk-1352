@@ -8,8 +8,10 @@ interface RelationState {
   isInitialized: boolean;
   init: () => void;
   addRelation: (actorId1: string, actorId2: string, intimacy: number, stance: StanceType, description: string) => void;
+  addRelationDirect: (relation: Relation) => void;
   updateRelation: (id: string, updates: Partial<Relation>) => void;
   deleteRelation: (id: string) => void;
+  removeRelationsForActor: (actorId: string) => void;
   getRelation: (actorId1: string, actorId2: string) => Relation | undefined;
   getRelationsForActor: (actorId: string) => Relation[];
 }
@@ -42,6 +44,22 @@ export const useRelationStore = create<RelationState>((set, get) => ({
       description,
     };
     const relations = [...get().relations, newRelation];
+    set({ relations });
+    storage.set('relations', relations);
+  },
+
+  addRelationDirect: (relation) => {
+    const existing = get().getRelation(relation.actorId1, relation.actorId2);
+    if (existing) return;
+    const relations = [...get().relations, relation];
+    set({ relations });
+    storage.set('relations', relations);
+  },
+
+  removeRelationsForActor: (actorId) => {
+    const relations = get().relations.filter(
+      r => r.actorId1 !== actorId && r.actorId2 !== actorId
+    );
     set({ relations });
     storage.set('relations', relations);
   },

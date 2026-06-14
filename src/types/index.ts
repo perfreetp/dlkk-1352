@@ -48,6 +48,7 @@ export interface ChatRoom {
   updatedAt: number;
   currentSpeakerIndex: number;
   isPlaying: boolean;
+  pinnedMemories: string[];
 }
 
 export interface Script {

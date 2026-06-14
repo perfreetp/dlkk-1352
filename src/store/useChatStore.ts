@@ -4,6 +4,7 @@ import { storage, generateId } from '@/utils/storage';
 import { generateAIResponse, getChatSpeedInterval } from '@/utils/aiEngine';
 import { useActorStore } from './useActorStore';
 import { useSettingStore } from './useSettingStore';
+import { useRecordStore } from './useRecordStore';
 
 interface ChatState {
   rooms: ChatRoom[];
@@ -21,6 +22,10 @@ interface ChatState {
   editMessage: (roomId: string, messageId: string, newContent: string) => void;
   toggleFavorite: (roomId: string, messageId: string) => void;
   pinMemory: (roomId: string, memory: string) => void;
+  unpinMemory: (roomId: string, index: number) => void;
+  pinMessageAsMemory: (roomId: string, messageId: string) => void;
+  removeActorFromAllRooms: (actorId: string) => void;
+  saveRoomToRecords: (roomId: string) => string | null;
   
   startChat: (roomId: string) => void;
   pauseChat: (roomId: string) => void;
@@ -44,7 +49,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     if (get().isInitialized) return;
     const saved = storage.get<ChatRoom[]>('chatRooms', null);
     if (saved && saved.length > 0) {
-      set({ rooms: saved, isInitialized: true });
+      const normalized = saved.map(room => ({
+        ...room,
+        pinnedMemories: room.pinnedMemories || [],
+      }));
+      set({ rooms: normalized, isInitialized: true });
     } else {
       set({ isInitialized: true });
     }
@@ -56,13 +65,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       id: generateId(),
       name,
       mode,
-      actorIds,
+      actorIds: [...actorIds],
       messages: [],
       isPinned: false,
       createdAt: now,
       updatedAt: now,
       currentSpeakerIndex: 0,
       isPlaying: false,
+      pinnedMemories: [],
     };
     const rooms = [...get().rooms, newRoom];
     set({ rooms, currentRoomId: newRoom.id });
@@ -141,17 +151,97 @@ export const useChatStore = create<ChatState>((set, get) => ({
   pinMemory: (roomId, memory) => {
     const rooms = get().rooms.map(room =>
       room.id === roomId
-        ? { ...room, updatedAt: Date.now() }
+        ? { 
+            ...room, 
+            pinnedMemories: [...(room.pinnedMemories || []), memory],
+            updatedAt: Date.now() 
+          }
         : room
     );
     set({ rooms });
     storage.set('chatRooms', rooms);
   },
 
+  unpinMemory: (roomId, index) => {
+    const rooms = get().rooms.map(room => {
+      if (room.id !== roomId) return room;
+      const newMemories = [...(room.pinnedMemories || [])];
+      newMemories.splice(index, 1);
+      return { ...room, pinnedMemories: newMemories, updatedAt: Date.now() };
+    });
+    set({ rooms });
+    storage.set('chatRooms', rooms);
+  },
+
+  pinMessageAsMemory: (roomId, messageId) => {
+    const room = get().rooms.find(r => r.id === roomId);
+    if (!room) return;
+    const msg = room.messages.find(m => m.id === messageId);
+    if (!msg) return;
+    const memoryText = `【${msg.type === 'narration' ? '旁白' : '角色发言'}】${msg.content}`;
+    get().pinMemory(roomId, memoryText);
+  },
+
+  removeActorFromAllRooms: (actorId) => {
+    const rooms = get().rooms.map(room => ({
+      ...room,
+      actorIds: room.actorIds.filter(id => id !== actorId),
+      messages: room.messages.map(msg => 
+        msg.actorId === actorId ? { ...msg, actorId: undefined } : msg
+      ),
+    }));
+    set({ rooms });
+    storage.set('chatRooms', rooms);
+  },
+
+  saveRoomToRecords: (roomId) => {
+    const room = get().rooms.find(r => r.id === roomId);
+    if (!room) return null;
+    
+    const actors = useActorStore.getState().actors;
+    const roomActors = actors.filter(a => room.actorIds.includes(a.id));
+    const actorNames = roomActors.map(a => a.name).join('、');
+    
+    let summary = '';
+    const narrationMsgs = room.messages.filter(m => m.type === 'narration');
+    const aiMsgs = room.messages.filter(m => m.type === 'ai');
+    
+    if (narrationMsgs.length > 0) {
+      summary = narrationMsgs[0].content;
+    } else if (aiMsgs.length > 0) {
+      summary = `${actorNames}的对话：${aiMsgs[0].content.substring(0, 50)}${aiMsgs[0].content.length > 50 ? '...' : ''}`;
+    } else {
+      summary = `${actorNames}的对话记录`;
+    }
+    
+    let duration = 0;
+    if (room.messages.length > 0) {
+      const first = room.messages[0].timestamp;
+      const last = room.messages[room.messages.length - 1].timestamp;
+      duration = Math.round((last - first) / 1000);
+    }
+    
+    const recordStore = useRecordStore.getState();
+    if (!recordStore.isInitialized) {
+      recordStore.init();
+    }
+    
+    recordStore.addRecord(
+      room.name,
+      summary,
+      [...room.actorIds],
+      room.messages.map(m => ({ ...m })),
+      duration
+    );
+    
+    return 'ok';
+  },
+
   startChat: (roomId) => {
     const { rooms } = get();
     const room = rooms.find(r => r.id === roomId);
     if (!room || room.isPlaying) return;
+    if (room.actorIds.length === 0) return;
 
     const updatedRooms = rooms.map(r =>
       r.id === roomId ? { ...r, isPlaying: true } : r
@@ -198,15 +288,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const currentActor = actors.find(a => a.id === room.actorIds[room.currentSpeakerIndex]);
     
     if (currentActor) {
-      const lastActorId = room.currentSpeakerIndex > 0 
-        ? room.actorIds[(room.currentSpeakerIndex - 1 + room.actorIds.length) % room.actorIds.length]
-        : null;
-      
       const response = generateAIResponse(
         currentActor,
         room.messages,
         actors,
-        undefined
+        room.pinnedMemories || []
       );
       
       const updatedRooms = rooms.map(r =>

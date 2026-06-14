@@ -10,6 +10,7 @@ interface TemplateState {
   addTemplate: (name: string, description: string, actors: AIActor[], relations: Relation[]) => void;
   updateTemplate: (id: string, updates: Partial<Template>) => void;
   deleteTemplate: (id: string) => void;
+  removeActorFromAllTemplates: (actorId: string) => void;
   getTemplate: (id: string) => Template | undefined;
   searchTemplates: (query: string) => Template[];
 }
@@ -54,6 +55,18 @@ export const useTemplateStore = create<TemplateState>((set, get) => ({
 
   deleteTemplate: (id) => {
     const templates = get().templates.filter(t => t.id !== id);
+    set({ templates });
+    storage.set('templates', templates);
+  },
+
+  removeActorFromAllTemplates: (actorId) => {
+    const templates = get().templates.map(t => ({
+      ...t,
+      actors: t.actors.filter(a => a.id !== actorId),
+      relations: t.relations.filter(
+        r => r.actorId1 !== actorId && r.actorId2 !== actorId
+      ),
+    }));
     set({ templates });
     storage.set('templates', templates);
   },

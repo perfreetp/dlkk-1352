@@ -169,6 +169,7 @@ export const generateAIResponse = (
   actor: AIActor,
   history: ChatMessage[],
   allActors: AIActor[],
+  pinnedMemories: string[] = [],
   relation?: Relation
 ): ChatMessage => {
   const lastMessage = history.filter(m => m.type === 'ai').slice(-1)[0];
@@ -214,6 +215,21 @@ export const generateAIResponse = (
     response = generateResponseBasedOnRelation(response, relation, lastActor.name);
   }
   
+  // 固定记忆优先引用（概率更高）
+  if (pinnedMemories && pinnedMemories.length > 0 && Math.random() > 0.4) {
+    const memory = getRandomItem(pinnedMemories);
+    if (memory && !response.includes(memory.substring(0, 20))) {
+      const prefixes = [
+        '说到这里，',
+        '对了，',
+        '我想起来了，',
+        '话说，',
+      ];
+      response += ` ${getRandomItem(prefixes)}${memory}`;
+    }
+  }
+  
+  // 角色自身记忆
   if (actor.memory && Math.random() > 0.7) {
     const memoryItems = actor.memory.split(/[,，。、\n]/).filter(m => m.trim().length > 3);
     if (memoryItems.length > 0) {

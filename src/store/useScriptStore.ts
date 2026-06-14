@@ -12,6 +12,7 @@ interface ScriptState {
   addScript: (title: string, theme: string, opening: string, actorIds: string[]) => void;
   updateScript: (id: string, updates: Partial<Script>) => void;
   deleteScript: (id: string) => void;
+  removeActorFromAllScripts: (actorId: string) => void;
   generateOpening: (theme: string, actorIds: string[]) => string;
   searchScripts: (query: string) => Script[];
 }
@@ -59,6 +60,15 @@ export const useScriptStore = create<ScriptState>((set, get) => ({
 
   deleteScript: (id) => {
     const scripts = get().scripts.filter(s => s.id !== id);
+    set({ scripts });
+    storage.set('scripts', scripts);
+  },
+
+  removeActorFromAllScripts: (actorId) => {
+    const scripts = get().scripts.map(s => ({
+      ...s,
+      actorIds: s.actorIds.filter(id => id !== actorId),
+    }));
     set({ scripts });
     storage.set('scripts', scripts);
   },

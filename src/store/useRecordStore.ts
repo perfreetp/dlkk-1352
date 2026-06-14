@@ -10,6 +10,7 @@ interface RecordState {
   addRecord: (title: string, summary: string, actorIds: string[], messages: ChatMessage[], duration: number) => void;
   updateRecord: (id: string, updates: Partial<ChatRecord>) => void;
   deleteRecord: (id: string) => void;
+  removeActorFromAllRecords: (actorId: string) => void;
   toggleFavorite: (id: string) => void;
   getRecord: (id: string) => ChatRecord | undefined;
   searchRecords: (query: string) => ChatRecord[];
@@ -58,6 +59,18 @@ export const useRecordStore = create<RecordState>((set, get) => ({
 
   deleteRecord: (id) => {
     const records = get().records.filter(r => r.id !== id);
+    set({ records });
+    storage.set('records', records);
+  },
+
+  removeActorFromAllRecords: (actorId) => {
+    const records = get().records.map(r => ({
+      ...r,
+      actorIds: r.actorIds.filter(id => id !== actorId),
+      messages: r.messages.map(msg => 
+        msg.actorId === actorId ? { ...msg, actorId: undefined } : msg
+      ),
+    }));
     set({ records });
     storage.set('records', records);
   },
