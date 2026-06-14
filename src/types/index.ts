@@ -26,6 +26,10 @@ export interface PinnedMemory {
   text: string;
   source: PinnedMemorySource;
   sourceMessageId?: string;
+  recordSource?: {
+    recordId: string;
+    recordTitle: string;
+  };
   createdAt: number;
 }
 
@@ -33,6 +37,7 @@ export interface ReviewNotes {
   conflict: string;
   characterStates: string;
   nextSteps: string;
+  tags: string[];
 }
 
 export type StanceType = 'friendly' | 'neutral' | 'hostile' | 'complex';
@@ -92,7 +97,7 @@ export interface ChatRecord {
   title: string;
   summary: string;
   actorIds: string[];
-  actorsSnapshot: ActorSnapshot[];
+  actorsSnapshot: Record<string, ActorSnapshot>;
   messages: ChatMessage[];
   isFavorite: boolean;
   createdAt: number;
@@ -102,6 +107,7 @@ export interface ChatRecord {
   pinnedMemories: PinnedMemory[];
   parentId?: string;
   branchName?: string;
+  branchDisplayName?: string;
   reviewNotes: ReviewNotes;
   reviewSummary?: string;
 }

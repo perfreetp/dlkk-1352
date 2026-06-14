@@ -397,16 +397,26 @@ export default function Chat() {
                       return (
                         <div
                           key={mem.id}
-                          className="group relative px-3 py-1.5 bg-amber-500/15 rounded-lg text-xs text-amber-200/90 border border-amber-500/20 flex items-center gap-2"
+                          className="group relative px-3 py-2 bg-amber-500/15 rounded-lg text-xs text-amber-200/90 border border-amber-500/20"
                         >
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded border ${src.className} flex items-center gap-1 flex-shrink-0`}>
-                            {src.icon}
-                            {src.text}
-                          </span>
-                          <span className="truncate max-w-sm">{mem.text}</span>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded border ${src.className} flex items-center gap-1 flex-shrink-0`}>
+                                {src.icon}
+                                {src.text}
+                              </span>
+                              {mem.recordSource && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded border bg-sky-500/15 text-sky-200 border-sky-500/30 flex items-center gap-1 flex-shrink-0">
+                                  <RotateCcw className="w-3 h-3" />
+                                  来自「{mem.recordSource.recordTitle}」
+                                </span>
+                              )}
+                            </div>
+                            <span className="max-w-sm">{mem.text}</span>
+                          </div>
                           <button
                             onClick={() => unpinMemory(currentRoom.id, mem.id)}
-                            className="opacity-0 group-hover:opacity-100 text-amber-400/60 hover:text-amber-400 transition-opacity flex-shrink-0"
+                            className="opacity-0 group-hover:opacity-100 text-amber-400/60 hover:text-amber-400 transition-opacity flex-shrink-0 absolute top-1 right-1"
                             title="取消钉住"
                           >
                             <X className="w-3 h-3" />

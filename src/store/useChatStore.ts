@@ -323,7 +323,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       updatedAt: now,
       currentSpeakerIndex: 0,
       isPlaying: false,
-      pinnedMemories: (record.pinnedMemories || []).map(m => ({ ...m })),
+      pinnedMemories: (record.pinnedMemories || []).map(m => ({
+        ...m,
+        id: generateId(),
+        recordSource: {
+          recordId: record.id,
+          recordTitle: record.title,
+        },
+      })),
       parentRecordId: record.id,
       parentRecordTitle: record.title,
     };

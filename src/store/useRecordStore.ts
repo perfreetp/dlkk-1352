@@ -24,9 +24,12 @@ interface RecordState {
   toggleFavorite: (id: string) => void;
   getRecord: (id: string) => ChatRecord | undefined;
   searchRecords: (query: string) => ChatRecord[];
+  getRecordsByTag: (tag: string) => ChatRecord[];
+  getAllTags: () => string[];
   getFavoriteRecords: () => ChatRecord[];
   addBranch: (parentId: string, branchRoomName: string) => void;
   updateReviewNotes: (id: string, notes: Partial<ReviewNotes>) => void;
+  updateBranchName: (id: string, newName: string) => void;
   getBranchesForRecord: (parentId: string) => ChatRecord[];
 }
 
@@ -46,12 +49,23 @@ const normalizePinnedMemories = (raw: any): PinnedMemory[] => {
       text: item.text || '',
       source: item.source || 'manual',
       sourceMessageId: item.sourceMessageId,
+      recordSource: item.recordSource,
       createdAt: item.createdAt || Date.now(),
     };
   });
 };
 
-const emptyNotes: ReviewNotes = { conflict: '', characterStates: '', nextSteps: '' };
+const snapshotArrayToMap = (arr: ActorSnapshot[] | Record<string, ActorSnapshot> | undefined): Record<string, ActorSnapshot> => {
+  if (!arr) return {};
+  if (Array.isArray(arr)) {
+    const map: Record<string, ActorSnapshot> = {};
+    arr.forEach(s => { if (s?.id) map[s.id] = s; });
+    return map;
+  }
+  return arr;
+};
+
+const emptyNotes: ReviewNotes = { conflict: '', characterStates: '', nextSteps: '', tags: [] };
 
 export const useRecordStore = create<RecordState>((set, get) => ({
   records: [],
@@ -66,11 +80,12 @@ export const useRecordStore = create<RecordState>((set, get) => ({
         mode: r.mode || (r.actorIds.length === 2 ? 'one-on-one' : 'group'),
         savedAt: r.savedAt || r.createdAt,
         pinnedMemories: normalizePinnedMemories(r.pinnedMemories),
-        actorsSnapshot: (r as any).actorsSnapshot || [],
-        reviewNotes: (r as any).reviewNotes || { ...emptyNotes },
+        actorsSnapshot: snapshotArrayToMap((r as any).actorsSnapshot),
+        reviewNotes: { ...emptyNotes, ...((r as any).reviewNotes || {}) },
         reviewSummary: (r as any).reviewSummary || '',
         parentId: (r as any).parentId,
         branchName: (r as any).branchName,
+        branchDisplayName: (r as any).branchDisplayName,
       }));
       set({ records: normalized, isInitialized: true });
     } else {
@@ -82,6 +97,9 @@ export const useRecordStore = create<RecordState>((set, get) => ({
   addRecord: (title, summary, actorIds, actorsSnapshot, messages, duration, mode = 'group', pinnedMemories = [], parentId) => {
     const now = Date.now();
     const newId = generateId();
+    
+    // 数组转对象存储
+    const actorsSnapshotMap = snapshotArrayToMap(actorsSnapshot);
     
     // 自动生成分支名（如果是续写的）
     let branchName: string | undefined;
@@ -95,7 +113,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       title,
       summary,
       actorIds,
-      actorsSnapshot,
+      actorsSnapshot: actorsSnapshotMap,
       messages,
       isFavorite: false,
       createdAt: now,
@@ -152,17 +170,30 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       r =>
         r.title.toLowerCase().includes(lowerQuery) ||
         r.summary.toLowerCase().includes(lowerQuery) ||
-        (r.reviewSummary || '').toLowerCase().includes(lowerQuery)
+        (r.reviewSummary || '').toLowerCase().includes(lowerQuery) ||
+        (r.reviewNotes?.tags || []).some(t => t.toLowerCase().includes(lowerQuery)) ||
+        (r.branchName || '').toLowerCase().includes(lowerQuery) ||
+        (r.branchDisplayName || '').toLowerCase().includes(lowerQuery)
     );
+  },
+
+  getRecordsByTag: (tag) => {
+    if (!tag) return get().records;
+    return get().records.filter(r => (r.reviewNotes?.tags || []).includes(tag));
+  },
+
+  getAllTags: () => {
+    const tagSet = new Set<string>();
+    get().records.forEach(r => {
+      (r.reviewNotes?.tags || []).forEach(t => tagSet.add(t));
+    });
+    return Array.from(tagSet).sort();
   },
 
   getFavoriteRecords: () => {
     return get().records.filter(r => r.isFavorite);
   },
 
-  // 记录一个续写分支（但此时续写房间还没保存，先占个空？——
-  //  实际上用户会在续写房间里再点"保存到回放库"，那时 addRecord 已经用 parentId 自动加分支。
-  //  这个 addBranch 只是给聊天室 restore 后立即可见一个占位提示，可选实现）
   addBranch: (_parentId, _branchRoomName) => {
     // 实际分支在用户点击保存时由 addRecord(parentId) 自动创建
   },
@@ -171,6 +202,8 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     const records = get().records.map(r => {
       if (r.id !== id) return r;
       const mergedNotes: ReviewNotes = { ...r.reviewNotes, ...notes };
+      // 确保 tags 是数组
+      if (!mergedNotes.tags || !Array.isArray(mergedNotes.tags)) mergedNotes.tags = [];
       // 自动生成摘要：优先 conflict，再 nextSteps，再 characterStates，取前 60 字
       const parts: string[] = [];
       if (mergedNotes.conflict) parts.push(mergedNotes.conflict);
@@ -180,6 +213,14 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       const reviewSummary = full.length > 60 ? full.substring(0, 60) + '…' : full;
       return { ...r, reviewNotes: mergedNotes, reviewSummary, savedAt: Date.now() };
     });
+    set({ records });
+    storage.set('records', records);
+  },
+
+  updateBranchName: (id, newName) => {
+    const records = get().records.map(r =>
+      r.id === id ? { ...r, branchDisplayName: newName.trim() || undefined, savedAt: Date.now() } : r
+    );
     set({ records });
     storage.set('records', records);
   },
