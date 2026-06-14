@@ -1,0 +1,204 @@
+import type { AIActor, Relation, Template, Script, ChatRecord, AppSettings } from '@/types';
+import { generateId } from '@/utils/storage';
+
+const now = Date.now();
+
+export const defaultActors: AIActor[] = [
+  {
+    id: generateId(),
+    name: '林小雨',
+    avatar: '🌧️',
+    tone: '温和友善',
+    memory: '喜欢下雨天，爱喝热可可，最近在学吉他',
+    taboo: '不喜欢讨论政治',
+    tags: ['温柔', '文艺', '治愈'],
+    color: '#60a5fa',
+    createdAt: now - 86400000 * 7,
+    updatedAt: now - 86400000 * 2,
+  },
+  {
+    id: generateId(),
+    name: '陈默',
+    avatar: '🗿',
+    tone: '高冷傲娇',
+    memory: '程序员，喜欢独自喝咖啡，养了一只黑猫',
+    taboo: '讨厌别人啰嗦',
+    tags: ['高冷', '程序员', '猫奴'],
+    color: '#6366f1',
+    createdAt: now - 86400000 * 5,
+    updatedAt: now - 86400000 * 1,
+  },
+  {
+    id: generateId(),
+    name: '苏暖阳',
+    avatar: '☀️',
+    tone: '活泼开朗',
+    memory: '大学生，喜欢旅行和拍照，梦想环游世界',
+    taboo: '害怕虫子',
+    tags: ['活泼', '阳光', '元气'],
+    color: '#fbbf24',
+    createdAt: now - 86400000 * 3,
+    updatedAt: now - 86400000,
+  },
+  {
+    id: generateId(),
+    name: '沈清秋',
+    avatar: '🍂',
+    tone: '深沉忧郁',
+    memory: '作家，喜欢深夜写作，经常失眠',
+    taboo: '不喜欢被问隐私问题',
+    tags: ['文艺', '忧郁', '作家'],
+    color: '#a78bfa',
+    createdAt: now - 86400000 * 10,
+    updatedAt: now - 86400000 * 5,
+  },
+  {
+    id: generateId(),
+    name: '李大嘴',
+    avatar: '😂',
+    tone: '幽默风趣',
+    memory: '脱口秀演员，爱吃火锅，笑点很低',
+    taboo: '开不起玩笑的人',
+    tags: ['搞笑', '话痨', '吃货'],
+    color: '#f87171',
+    createdAt: now - 86400000 * 2,
+    updatedAt: now - 86400000,
+  },
+  {
+    id: generateId(),
+    name: '顾先生',
+    avatar: '🎩',
+    tone: '知性优雅',
+    memory: '大学教授，研究哲学，喜欢古典音乐',
+    taboo: '粗俗的语言',
+    tags: ['儒雅', '学者', '绅士'],
+    color: '#14b8a6',
+    createdAt: now - 86400000 * 15,
+    updatedAt: now - 86400000 * 3,
+  },
+];
+
+export const defaultRelations: Relation[] = [
+  {
+    id: generateId(),
+    actorId1: defaultActors[0].id,
+    actorId2: defaultActors[1].id,
+    intimacy: 75,
+    stance: 'complex',
+    description: '欢喜冤家，经常拌嘴但其实很关心对方',
+  },
+  {
+    id: generateId(),
+    actorId1: defaultActors[0].id,
+    actorId2: defaultActors[2].id,
+    intimacy: 90,
+    stance: 'friendly',
+    description: '好闺蜜，无话不谈',
+  },
+  {
+    id: generateId(),
+    actorId1: defaultActors[1].id,
+    actorId2: defaultActors[5].id,
+    intimacy: 60,
+    stance: 'neutral',
+    description: '师生关系，互相尊重',
+  },
+  {
+    id: generateId(),
+    actorId1: defaultActors[2].id,
+    actorId2: defaultActors[4].id,
+    intimacy: 85,
+    stance: 'friendly',
+    description: '玩得很好的朋友，经常一起出去玩',
+  },
+  {
+    id: generateId(),
+    actorId1: defaultActors[3].id,
+    actorId2: defaultActors[5].id,
+    intimacy: 70,
+    stance: 'friendly',
+    description: '文学知己，经常讨论文学作品',
+  },
+];
+
+export const defaultTemplates: Template[] = [
+  {
+    id: generateId(),
+    name: '都市恋爱物语',
+    description: '一群年轻人在都市中的爱情与友情故事',
+    actors: [defaultActors[0], defaultActors[1], defaultActors[2], defaultActors[4]],
+    relations: defaultRelations.slice(0, 3),
+    createdAt: now - 86400000 * 3,
+  },
+  {
+    id: generateId(),
+    name: '文学沙龙',
+    description: '文人雅士的深度对话',
+    actors: [defaultActors[3], defaultActors[5]],
+    relations: [defaultRelations[4]],
+    createdAt: now - 86400000 * 5,
+  },
+];
+
+export const defaultScripts: Script[] = [
+  {
+    id: generateId(),
+    title: '咖啡馆相遇',
+    theme: '日常闲聊',
+    opening: '一个慵懒的周末下午，林小雨独自坐在街角的咖啡馆里，看着窗外的雨景发呆。',
+    actorIds: [defaultActors[0].id, defaultActors[1].id],
+    createdAt: now - 86400000 * 2,
+    updatedAt: now - 86400000,
+  },
+  {
+    id: generateId(),
+    title: '深夜谈心事',
+    theme: '情感讨论',
+    opening: '夜深了，微信群里还亮着几个头像。苏暖阳突然发起了群聊。',
+    actorIds: [defaultActors[0].id, defaultActors[2].id, defaultActors[3].id],
+    createdAt: now - 86400000 * 4,
+    updatedAt: now - 86400000 * 2,
+  },
+  {
+    id: generateId(),
+    title: '头脑风暴会议',
+    theme: '创意 brainstorm',
+    opening: '会议室的白板上写满了乱七八糟的创意，李大嘴站在前面，一脸兴奋。',
+    actorIds: [defaultActors[1].id, defaultActors[2].id, defaultActors[4].id],
+    createdAt: now - 86400000,
+    updatedAt: now - 3600000,
+  },
+];
+
+export const defaultRecords: ChatRecord[] = [
+  {
+    id: generateId(),
+    title: '雨天的咖啡馆',
+    summary: '林小雨和陈默在咖啡馆偶遇，展开了一段有趣的对话。',
+    actorIds: [defaultActors[0].id, defaultActors[1].id],
+    messages: [],
+    isFavorite: true,
+    createdAt: now - 86400000 * 2,
+    duration: 1800,
+  },
+  {
+    id: generateId(),
+    title: '周末聚会',
+    summary: '一群好朋友的周末闲聊时光。',
+    actorIds: [defaultActors[0].id, defaultActors[2].id, defaultActors[4].id],
+    messages: [],
+    isFavorite: false,
+    createdAt: now - 86400000,
+    duration: 3600,
+  },
+];
+
+export const defaultSettings: AppSettings = {
+  theme: 'dark',
+  language: 'zh-CN',
+  chatSpeed: 'normal',
+  autoPlay: true,
+  exportFormat: 'md',
+  showTimestamp: true,
+  animationsEnabled: true,
+};
