@@ -26,6 +26,7 @@ interface ChatState {
   pinMessageAsMemory: (roomId: string, messageId: string) => void;
   removeActorFromAllRooms: (actorId: string) => void;
   saveRoomToRecords: (roomId: string) => string | null;
+  restoreRoomFromRecord: (recordId: string) => string | null;
   
   startChat: (roomId: string) => void;
   pauseChat: (roomId: string) => void;
@@ -231,10 +232,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
       summary,
       [...room.actorIds],
       room.messages.map(m => ({ ...m })),
-      duration
+      duration,
+      room.mode,
+      [...(room.pinnedMemories || [])]
     );
     
     return 'ok';
+  },
+
+  restoreRoomFromRecord: (recordId) => {
+    const record = useRecordStore.getState().getRecord(recordId);
+    if (!record) return null;
+
+    // 过滤掉已删除的角色ID（不存在于当前actors中的）
+    const actors = useActorStore.getState().actors;
+    const actorIds = record.actorIds.filter(id => actors.some(a => a.id === id));
+
+    if (actorIds.length === 0) {
+      return null;
+    }
+
+    const now = Date.now();
+    const newRoom: ChatRoom = {
+      id: generateId(),
+      name: `${record.title}（续）`,
+      mode: record.mode || (actorIds.length === 2 ? 'one-on-one' : 'group'),
+      actorIds: [...actorIds],
+      messages: record.messages.map(m => ({ ...m })),
+      isPinned: false,
+      createdAt: now,
+      updatedAt: now,
+      currentSpeakerIndex: 0,
+      isPlaying: false,
+      pinnedMemories: [...(record.pinnedMemories || [])],
+    };
+    const rooms = [...get().rooms, newRoom];
+    set({ rooms, currentRoomId: newRoom.id });
+    storage.set('chatRooms', rooms);
+    return newRoom.id;
   },
 
   startChat: (roomId) => {

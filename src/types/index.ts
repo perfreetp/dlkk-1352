@@ -70,6 +70,9 @@ export interface ChatRecord {
   isFavorite: boolean;
   createdAt: number;
   duration: number;
+  mode: ChatMode;
+  savedAt: number;
+  pinnedMemories: string[];
 }
 
 export interface Template {

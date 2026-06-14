@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ChatRecord, ChatMessage } from '@/types';
+import type { ChatRecord, ChatMessage, ChatMode } from '@/types';
 import { storage, generateId } from '@/utils/storage';
 import { defaultRecords } from '@/data/mockData';
 
@@ -7,7 +7,7 @@ interface RecordState {
   records: ChatRecord[];
   isInitialized: boolean;
   init: () => void;
-  addRecord: (title: string, summary: string, actorIds: string[], messages: ChatMessage[], duration: number) => void;
+  addRecord: (title: string, summary: string, actorIds: string[], messages: ChatMessage[], duration: number, mode?: ChatMode, pinnedMemories?: string[]) => void;
   updateRecord: (id: string, updates: Partial<ChatRecord>) => void;
   deleteRecord: (id: string) => void;
   removeActorFromAllRecords: (actorId: string) => void;
@@ -25,14 +25,20 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     if (get().isInitialized) return;
     const saved = storage.get<ChatRecord[]>('records', null);
     if (saved && saved.length > 0) {
-      set({ records: saved, isInitialized: true });
+      const normalized = saved.map(r => ({
+        ...r,
+        mode: r.mode || (r.actorIds.length === 2 ? 'one-on-one' : 'group'),
+        savedAt: r.savedAt || r.createdAt,
+        pinnedMemories: r.pinnedMemories || [],
+      }));
+      set({ records: normalized, isInitialized: true });
     } else {
       set({ records: defaultRecords, isInitialized: true });
       storage.set('records', defaultRecords);
     }
   },
 
-  addRecord: (title, summary, actorIds, messages, duration) => {
+  addRecord: (title, summary, actorIds, messages, duration, mode = 'group', pinnedMemories = []) => {
     const now = Date.now();
     const newRecord: ChatRecord = {
       id: generateId(),
@@ -43,6 +49,9 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       isFavorite: false,
       createdAt: now,
       duration,
+      mode,
+      savedAt: now,
+      pinnedMemories,
     };
     const records = [newRecord, ...get().records];
     set({ records });

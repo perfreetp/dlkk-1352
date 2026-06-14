@@ -180,6 +180,9 @@ export const defaultRecords: ChatRecord[] = [
     isFavorite: true,
     createdAt: now - 86400000 * 2,
     duration: 1800,
+    mode: 'one-on-one',
+    savedAt: now - 86400000 * 2,
+    pinnedMemories: [],
   },
   {
     id: generateId(),
@@ -190,6 +193,9 @@ export const defaultRecords: ChatRecord[] = [
     isFavorite: false,
     createdAt: now - 86400000,
     duration: 3600,
+    mode: 'group',
+    savedAt: now - 86400000,
+    pinnedMemories: [],
   },
 ];
 
